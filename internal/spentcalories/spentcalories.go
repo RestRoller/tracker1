@@ -10,7 +10,7 @@ import (
 
 const (
 	// В пакетных тестах ожидается именно такой коэффициент
-	stepLengthCoefficient      = 0.45
+	stepLengthCoefficient = 0.45
 	// В тестах коэффициент для ходьбы — 0.5 (половина от бега)
 	walkingCaloriesCoefficient = 0.5
 	// минут в часе
@@ -78,8 +78,8 @@ func RunningSpentCalories(steps int, weight, height float64, duration time.Durat
 		return 0, fmt.Errorf("invalid input values")
 	}
 
-	speed := meanSpeed(steps, height, duration)    // км/ч
-	minutes := duration.Minutes()                  // минуты
+	speed := meanSpeed(steps, height, duration) // км/ч
+	minutes := duration.Minutes()               // минуты
 	calories := (weight * speed * minutes) / minInH
 	return calories, nil
 }
