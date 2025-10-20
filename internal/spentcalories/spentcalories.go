@@ -9,109 +9,83 @@ import (
 )
 
 const (
-	// коэффициент длины шага (height * stepLengthCoefficient = длина шага в метрах)
-	stepLengthCoefficient    = 0.415
-	// коэффициент для расчёта калорий при ходьбе
+	stepLengthCoefficient     = 0.45   // длина шага относительно роста
 	walkingCaloriesCoefficient = 0.8
-	// минут в часе
-	minInH = 60.0
-	// метров в километре
-	mInKm = 1000.0
+	mInKm                      = 1000.0
 )
 
-// parseTraining парсит строку вида "3456,Ходьба,3h00m"
+// parseTraining парсит строку формата "3456,Ходьба,3h00m"
 func parseTraining(data string) (int, string, time.Duration, error) {
 	parts := strings.Split(data, ",")
 	if len(parts) != 3 {
-		return 0, "", 0, fmt.Errorf("invalid training data format: %q", data)
+		return 0, "", 0, fmt.Errorf("invalid data format")
 	}
 
-	stepsStr := strings.TrimSpace(parts[0])
+	steps, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil || steps <= 0 {
+		return 0, "", 0, fmt.Errorf("invalid steps value")
+	}
+
 	activity := strings.TrimSpace(parts[1])
 	durationStr := strings.TrimSpace(parts[2])
 
-	steps, err := strconv.Atoi(stepsStr)
-	if err != nil {
-		return 0, "", 0, fmt.Errorf("invalid steps: %w", err)
-	}
-
 	duration, err := time.ParseDuration(durationStr)
-	if err != nil {
-		return 0, "", 0, fmt.Errorf("invalid duration: %w", err)
+	if err != nil || duration <= 0 {
+		return 0, "", 0, fmt.Errorf("invalid duration")
 	}
 
 	return steps, activity, duration, nil
 }
 
-// distance возвращает дистанцию в километрах по шагам и росту (в метрах)
+// distance возвращает дистанцию в км
 func distance(steps int, height float64) float64 {
 	if steps <= 0 || height <= 0 {
 		return 0
 	}
-	stepLength := height * stepLengthCoefficient // в метрах
+	stepLength := height * stepLengthCoefficient
 	distMeters := float64(steps) * stepLength
 	return distMeters / mInKm
 }
 
-// meanSpeed возвращает среднюю скорость в км/ч
+// meanSpeed возвращает среднюю скорость (км/ч)
 func meanSpeed(steps int, height float64, duration time.Duration) float64 {
 	if duration <= 0 {
 		return 0
 	}
-	distKm := distance(steps, height)
+	dist := distance(steps, height)
 	hours := duration.Hours()
-	if hours == 0 {
+	if hours <= 0 {
 		return 0
 	}
-	return distKm / hours
+	return dist / hours
 }
 
-// RunningSpentCalories рассчитывает калории при беге
+// RunningSpentCalories — калории при беге
 func RunningSpentCalories(steps int, weight, height float64, duration time.Duration) (float64, error) {
-	if steps <= 0 {
-		return 0, fmt.Errorf("steps must be > 0")
-	}
-	if weight <= 0 {
-		return 0, fmt.Errorf("weight must be > 0")
-	}
-	if height <= 0 {
-		return 0, fmt.Errorf("height must be > 0")
-	}
-	if duration <= 0 {
-		return 0, fmt.Errorf("duration must be > 0")
+	if steps <= 0 || weight <= 0 || height <= 0 || duration <= 0 {
+		return 0, fmt.Errorf("invalid input values")
 	}
 
 	speed := meanSpeed(steps, height, duration)
-	minutes := duration.Minutes()
-
-	calories := (weight * speed * minutes) / minInH
+	hours := duration.Hours()
+	calories := (0.035*weight + (speed*speed/height)*0.029*weight) * hours
 	return calories, nil
 }
 
-// WalkingSpentCalories рассчитывает калории при ходьбе
+// WalkingSpentCalories — калории при ходьбе
 func WalkingSpentCalories(steps int, weight, height float64, duration time.Duration) (float64, error) {
-	if steps <= 0 {
-		return 0, fmt.Errorf("steps must be > 0")
-	}
-	if weight <= 0 {
-		return 0, fmt.Errorf("weight must be > 0")
-	}
-	if height <= 0 {
-		return 0, fmt.Errorf("height must be > 0")
-	}
-	if duration <= 0 {
-		return 0, fmt.Errorf("duration must be > 0")
+	if steps <= 0 || weight <= 0 || height <= 0 || duration <= 0 {
+		return 0, fmt.Errorf("invalid input values")
 	}
 
 	speed := meanSpeed(steps, height, duration)
-	minutes := duration.Minutes()
-
-	calories := (weight * speed * minutes) / minInH
-	calories = calories * walkingCaloriesCoefficient
+	hours := duration.Hours()
+	calories := (0.035*weight + (speed*speed/height)*0.029*weight) * hours
+	calories *= walkingCaloriesCoefficient
 	return calories, nil
 }
 
-// TrainingInfo возвращает форматированный отчёт по тренировке
+// TrainingInfo — текстовый отчёт
 func TrainingInfo(data string, weight, height float64) (string, error) {
 	steps, activity, duration, err := parseTraining(data)
 	if err != nil {
@@ -119,42 +93,31 @@ func TrainingInfo(data string, weight, height float64) (string, error) {
 		return "", err
 	}
 
-	// нормальная проверка входных параметров
-	if steps <= 0 || weight <= 0 || height <= 0 || duration <= 0 {
-		return "", fmt.Errorf("invalid input values")
-	}
-
-	dist := distance(steps, height)                // в км
-	speed := meanSpeed(steps, height, duration)    // км/ч
-	calories := 0.0
+	dist := distance(steps, height)
+	speed := meanSpeed(steps, height, duration)
+	var calories float64
 
 	switch strings.ToLower(activity) {
-	case strings.ToLower("Бег"), strings.ToLower("бег"):
-		calories, err = RunningSpentCalories(steps, weight, height, duration)
-		if err != nil {
-			log.Println(err)
-			return "", err
-		}
-	case strings.ToLower("Ходьба"), strings.ToLower("ходьба"):
+	case "ходьба":
 		calories, err = WalkingSpentCalories(steps, weight, height, duration)
-		if err != nil {
-			log.Println(err)
-			return "", err
-		}
+	case "бег":
+		calories, err = RunningSpentCalories(steps, weight, height, duration)
 	default:
-		return "", fmt.Errorf("unknown training type: %q", activity)
+		return "", fmt.Errorf("неизвестный тип тренировки")
 	}
 
-	// Форматирование отчёта: значения с двумя знаками после запятой
-	hours := duration.Hours()
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
 	report := fmt.Sprintf(
 		"Тип тренировки: %s\nДлительность: %.2f ч.\nДистанция: %.2f км.\nСкорость: %.2f км/ч\nСожгли калорий: %.2f",
 		activity,
-		hours,
+		duration.Hours(),
 		dist,
 		speed,
 		calories,
 	)
-
 	return report, nil
 }
