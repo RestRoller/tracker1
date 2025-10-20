@@ -1,13 +1,12 @@
-package daysteps
+package spentcalories_test
 
 import (
 	"fmt"
+	"github.com/Yandex-Practicum/tracker/internal/spentcalories"
 	"log"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/Yandex-Practicum/tracker/internal/spentcalories"
 )
 
 const (
