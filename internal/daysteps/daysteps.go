@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"test-repo/spentcalories"
 )
 
 const (
@@ -21,17 +19,13 @@ func parsePackage(data string) (int, time.Duration, error) {
 	}
 
 	steps, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, 0, fmt.Errorf("ошибка парсинга шагов: %v", err)
-	}
-
-	if steps <= 0 {
-		return 0, 0, fmt.Errorf("количество шагов должно быть больше 0")
+	if err != nil || steps <= 0 {
+		return 0, 0, fmt.Errorf("неверное количество шагов")
 	}
 
 	duration, err := time.ParseDuration(parts[1])
-	if err != nil {
-		return 0, 0, fmt.Errorf("ошибка парсинга времени: %v", err)
+	if err != nil || duration <= 0 {
+		return 0, 0, fmt.Errorf("неверная продолжительность")
 	}
 
 	return steps, duration, nil
@@ -51,12 +45,18 @@ func DayActionInfo(data string, weight, height float64) string {
 	distanceMeters := float64(steps) * stepLength
 	distanceKm := distanceMeters / mInKm
 
-	calories, err := spentcalories.WalkingSpentCalories(steps, weight, height, duration)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
+	calories := calculateWalkingCalories(steps, weight, height, duration)
 
-	return fmt.Sprintf("Количество шагов: %d.\nДистанция составила %.2f км.\nВы сожгли %.2f ккал.",
-		steps, distanceKm, calories)
+	result := fmt.Sprintf("Количество шагов: %d.\n", steps)
+	result += fmt.Sprintf("Дистанция составила %.2f км.\n", distanceKm)
+	result += fmt.Sprintf("Вы сожгли %.2f ккал.", calories)
+
+	return result
+}
+
+func calculateWalkingCalories(steps int, weight, height float64, duration time.Duration) float64 {
+	speed := (float64(steps) * stepLength / mInKm) / duration.Hours()
+	durationMinutes := duration.Minutes()
+	calories := (weight * speed * durationMinutes) / 60
+	return calories * 0.789 // walkingCaloriesCoefficient
 }
