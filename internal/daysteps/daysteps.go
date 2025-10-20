@@ -12,7 +12,7 @@ type DaySteps struct {
 }
 
 func (ds *DaySteps) Add(input string) error {
-	steps, _, _, err := parseTraining(input)
+	steps, _, _, err := parsePackage(input)
 	if err != nil {
 		return err
 	}
@@ -24,7 +24,7 @@ func (ds *DaySteps) Steps() int {
 	return ds.steps
 }
 
-func parseTraining(input string) (int, time.Duration, float64, error) {
+func parsePackage(input string) (int, time.Duration, float64, error) {
 	parts := strings.Fields(input)
 	if len(parts) != 3 {
 		return 0, 0, 0, fmt.Errorf("неверный формат данных")
@@ -47,7 +47,7 @@ func parseTraining(input string) (int, time.Duration, float64, error) {
 
 //DayActionInfo
 func DayActionInfo(data string, weight, height float64) string {
-	steps, duration, _, err := parseTraining(data)
+	steps, duration, _, err := parsePackage(data)
 	if err != nil {
 		fmt.Println(err)
 		return ""
