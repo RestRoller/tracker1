@@ -78,3 +78,4 @@ func DayActionInfo(data string, weight, height float64) string {
 
 	return result
 }
+//УРА НАКОНЕЦ ТО ПОЛУЧИЛОСЬ
