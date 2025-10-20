@@ -8,7 +8,12 @@ import (
 )
 
 type DaySteps struct {
+	first *DayStepsItem
+}
+
+type DayStepsItem struct {
 	steps int
+	next  *DayStepsItem
 }
 
 func (ds *DaySteps) Add(input string) error {
@@ -16,12 +21,29 @@ func (ds *DaySteps) Add(input string) error {
 	if err != nil {
 		return err
 	}
-	ds.steps += steps
+	
+	newItem := &DayStepsItem{steps: steps}
+	if ds.first == nil {
+		ds.first = newItem
+	} else {
+		current := ds.first
+		for current.next != nil {
+			current = current.next
+		}
+		current.next = newItem
+	}
+	
 	return nil
 }
 
 func (ds *DaySteps) Steps() int {
-	return ds.steps
+	total := 0
+	current := ds.first
+	for current != nil {
+		total += current.steps
+		current = current.next
+	}
+	return total
 }
 
 func parseTraining(input string) (int, time.Duration, float64, error) {
