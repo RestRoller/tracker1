@@ -1,4 +1,4 @@
-package daysteps
+package spentcalories
 
 import (
 	"fmt"
@@ -8,55 +8,107 @@ import (
 )
 
 const (
-	stepLength = 0.65
-	mInKm      = 1000
+	stepLengthCoefficient      = 0.414
+	mInKm                      = 1000
+	minInH                     = 60
+	walkingCaloriesCoefficient = 0.789
 )
 
-func parsePackage(data string) (int, time.Duration, error) {
+func parseTraining(data string) (int, string, time.Duration, error) {
 	parts := strings.Split(data, ",")
-	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("неверный формат данных")
+	if len(parts) != 3 {
+		return 0, "", 0, fmt.Errorf("неверный формат данных")
 	}
 
 	steps, err := strconv.Atoi(parts[0])
 	if err != nil || steps <= 0 {
-		return 0, 0, fmt.Errorf("неверное количество шагов")
+		return 0, "", 0, fmt.Errorf("неверное количество шагов")
 	}
 
-	duration, err := time.ParseDuration(parts[1])
+	activityType := parts[1]
+
+	duration, err := time.ParseDuration(parts[2])
 	if err != nil || duration <= 0 {
-		return 0, 0, fmt.Errorf("неверная продолжительность")
+		return 0, "", 0, fmt.Errorf("неверная продолжительность")
 	}
 
-	return steps, duration, nil
+	return steps, activityType, duration, nil
 }
 
-func DayActionInfo(data string, weight, height float64) string {
-	steps, duration, err := parsePackage(data)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-
-	if steps <= 0 {
-		return ""
-	}
-
+func distance(steps int, height float64) float64 {
+	stepLength := height * stepLengthCoefficient
 	distanceMeters := float64(steps) * stepLength
-	distanceKm := distanceMeters / mInKm
-
-	calories := calculateWalkingCalories(steps, weight, height, duration)
-
-	result := fmt.Sprintf("Количество шагов: %d.\n", steps)
-	result += fmt.Sprintf("Дистанция составила %.2f км.\n", distanceKm)
-	result += fmt.Sprintf("Вы сожгли %.2f ккал.", calories)
-
-	return result
+	return distanceMeters / mInKm
 }
 
-func calculateWalkingCalories(steps int, weight, height float64, duration time.Duration) float64 {
-	speed := (float64(steps) * stepLength / mInKm) / duration.Hours()
+func meanSpeed(steps int, height float64, duration time.Duration) float64 {
+	if duration <= 0 {
+		return 0
+	}
+	dist := distance(steps, height)
+	hours := duration.Hours()
+	return dist / hours
+}
+
+func RunningSpentCalories(steps int, weight, height float64, duration time.Duration) (float64, error) {
+	if steps <= 0 || weight <= 0 || height <= 0 || duration <= 0 {
+		return 0, fmt.Errorf("некорректные входные параметры")
+	}
+
+	speed := meanSpeed(steps, height, duration)
 	durationMinutes := duration.Minutes()
-	calories := (weight * speed * durationMinutes) / 60
-	return calories * 0.789 // walkingCaloriesCoefficient
+
+	calories := (weight * speed * durationMinutes) / minInH
+	return calories, nil
+}
+
+func WalkingSpentCalories(steps int, weight, height float64, duration time.Duration) (float64, error) {
+	if steps <= 0 || weight <= 0 || height <= 0 || duration <= 0 {
+		return 0, fmt.Errorf("некорректные входные параметры")
+	}
+
+	speed := meanSpeed(steps, height, duration)
+	durationMinutes := duration.Minutes()
+
+	calories := (weight * speed * durationMinutes) / minInH
+	calories *= walkingCaloriesCoefficient
+	return calories, nil
+}
+
+func TrainingInfo(data string, weight, height float64) (string, error) {
+	steps, activityType, duration, err := parseTraining(data)
+	if err != nil {
+		return "", err
+	}
+
+	var calories float64
+	var dist float64
+	var speed float64
+
+	switch activityType {
+	case "Ходьба":
+		calories, err = WalkingSpentCalories(steps, weight, height, duration)
+		if err != nil {
+			return "", err
+		}
+		dist = distance(steps, height)
+		speed = meanSpeed(steps, height, duration)
+	case "Бег":
+		calories, err = RunningSpentCalories(steps, weight, height, duration)
+		if err != nil {
+			return "", err
+		}
+		dist = distance(steps, height)
+		speed = meanSpeed(steps, height, duration)
+	default:
+		return "", fmt.Errorf("неизвестный тип тренировки")
+	}
+
+	info := fmt.Sprintf("Тип тренировки: %s\n", activityType)
+	info += fmt.Sprintf("Длительность: %.2f ч.\n", duration.Hours())
+	info += fmt.Sprintf("Дистанция: %.2f км.\n", dist)
+	info += fmt.Sprintf("Скорость: %.2f км/ч\n", speed)
+	info += fmt.Sprintf("Сожгли калорий: %.2f", calories)
+
+	return info, nil
 }
