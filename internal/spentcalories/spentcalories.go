@@ -32,59 +32,56 @@ func distance(steps int, length float64) float64 {
     return float64(steps) * length
 }
 
-func meanSpeed(steps int, length float64, duration time.Duration) float64 {
-    dist := distance(steps, length)
+func meanSpeed(distance float64, duration time.Duration) float64 {
     hours := duration.Hours()
     if hours == 0 {
         return 0
     }
-    return dist / hours
+    return distance / hours
 }
 
-func WalkingSpentCalories(steps int, weight float64, height float64, duration time.Duration) (float64, float64) {
+func WalkingSpentCalories(steps int, duration time.Duration, weight float64, height float64) float64 {
     if steps <= 0 || duration <= 0 || weight <= 0 || height <= 0 {
-        return 0, 0
+        return 0
     }
     
     length := 0.00075
     dist := distance(steps, length)
-    speed := meanSpeed(steps, length, duration)
+    speed := meanSpeed(dist, duration)
     
-    calories := (0.035 * weight + (speed*speed/height) * 0.029 * weight) * duration.Hours()
-    return calories, dist
+    return (0.035 * weight + (speed*speed/height) * 0.029 * weight) * duration.Hours()
 }
 
-func RunningSpentCalories(steps int, weight float64, height float64, duration time.Duration) (float64, float64) {
-    if steps <= 0 || duration <= 0 || weight <= 0 || height <= 0 {
-        return 0, 0
+func RunningSpentCalories(steps int, duration time.Duration, weight float64) float64 {
+    if steps <= 0 || duration <= 0 || weight <= 0 {
+        return 0
     }
     
     length := 0.00075
     dist := distance(steps, length)
-    speed := meanSpeed(steps, length, duration)
+    speed := meanSpeed(dist, duration)
     
-    calories := (0.035 * weight + (speed/1.5) * 0.035 * weight) * duration.Hours()
-    return calories, dist
+    return (0.035 * weight + (speed/1.5) * 0.035 * weight) * duration.Hours()
 }
 
 func TrainingInfo(trainingType string, input string, weight, height float64) (string, error) {
-    steps, duration, _, err := parseTraining(input)
+    steps, duration, dist, err := parseTraining(input)
     if err != nil {
         return "", err
     }
     
-    var calories, dist float64
+    var calories float64
     
     switch trainingType {
     case "Ходьба":
-        calories, dist = WalkingSpentCalories(steps, weight, height, duration)
+        calories = WalkingSpentCalories(steps, duration, weight, height)
     case "Бег":
-        calories, dist = RunningSpentCalories(steps, weight, height, duration)
+        calories = RunningSpentCalories(steps, duration, weight)
     default:
         return "", fmt.Errorf("неизвестный тип тренировки: %s", trainingType)
     }
     
-    speed := meanSpeed(steps, 0.00075, duration)
+    speed := meanSpeed(dist, duration)
     
     info := fmt.Sprintf("Тип тренировки: %s\n", trainingType)
     info += fmt.Sprintf("Длительность: %.2f ч.\n", duration.Hours())
