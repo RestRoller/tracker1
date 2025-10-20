@@ -89,4 +89,4 @@ func TrainingInfo(trainingType string, input string, weight, height float64) (st
 
 	return info, nil
 }
-//update NUMBER 32843
+//addad
